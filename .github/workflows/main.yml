@@ -1,0 +1,46 @@
+name: Azure App Service using Docker - Main
+ 
+on:
+  workflow_dispatch:
+ 
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+ 
+    steps:
+    # Step 1: Check out the repository
+    - name: Checkout repository
+      uses: actions/checkout@v2
+ 
+ 
+    # Step 3: Login to Azure using Service Principal credentials
+    - uses: azure/login@v2  
+      with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+ 
+    # Step 4: Set up Docker
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+ 
+    # Step 5: Build Docker image
+    - name: Build Docker image
+      run: |
+        docker build -t ${{ secrets.AZURE_REGISTRY_NAME }}.azurecr.io/my-python-app:${{ github.sha }} .
+ 
+    # Step 6: Log in to Azure Container Registry
+    - name: Log in to Azure Container Registry
+      run: |
+        az acr login --name ${{ secrets.AZURE_REGISTRY_NAME }}
+ 
+    # Step 7: Push Docker image to Azure Container Registry
+    - name: Push Docker image to Azure Container Registry
+      run: |
+        docker push ${{ secrets.AZURE_REGISTRY_NAME }}.azurecr.io/my-python-app:${{ github.sha }}
+ 
+    # Step 8: Deploy Docker container to Azure App Service
+    - name: Deploy Docker container to Azure App Service
+      run: |
+        az webapp config container set \
+          --name ${{ secrets.AZURE_APP_SERVICE_NAME }} \
+          --resource-group ${{ secrets.ACR_RESOURCE_GROUP }} \
+          --docker-custom-image-name ${{ secrets.AZURE_REGISTRY_NAME }}.azurecr.io/my-python-app:${{ github.sha }}
